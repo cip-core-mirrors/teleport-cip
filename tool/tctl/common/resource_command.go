@@ -89,6 +89,7 @@ func (rc *ResourceCommand) Initialize(app *kingpin.Application, config *service.
 		services.KindGithubConnector:       rc.createGithubConnector,
 		services.KindCertAuthority:         rc.createCertAuthority,
 		services.KindClusterAuthPreference: rc.createAuthPreference,
+		services.KindOIDCConnector:   		rc.createOidcConnector,
 	}
 	rc.config = config
 
@@ -336,6 +337,31 @@ func (rc *ResourceCommand) createGithubConnector(client auth.ClientI, raw servic
 			connector.GetName())
 	}
 	err = client.UpsertGithubConnector(ctx, connector)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	fmt.Printf("authentication connector %q has been %s\n",
+		connector.GetName(), UpsertVerb(exists, rc.force))
+	return nil
+}
+
+func (rc *ResourceCommand) createOidcConnector(client auth.ClientI, raw services.UnknownResource) error {
+	ctx := context.TODO()
+	connector, err := services.UnmarshalOIDCConnector(raw.Raw)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	
+	_, err = client.GetOIDCConnector(ctx, connector.GetName(), false)
+	if err != nil && !trace.IsNotFound(err) {
+		return trace.Wrap(err)
+	}
+	exists := (err == nil)
+	if !rc.force && exists {
+		return trace.AlreadyExists("authentication connector %q already exists",
+			connector.GetName())
+	}
+	err = client.UpsertOIDCConnector(ctx, connector)
 	if err != nil {
 		return trace.Wrap(err)
 	}
